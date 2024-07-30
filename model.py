@@ -9,9 +9,9 @@ from torch.autograd import Variable
 
 
 #-----------------STAGE I: GENERATOR (LOW RESOLUTION IMAGE PROD.)-------------------------#
-class stageI_Gen(nn.Module):
+class StageI_Gen(nn.Module):
     def __init__(self):
-        super(stageI_Gen,self).__init__()
+        super(StageI_Gen,self).__init__()
         self.gf_dim = 192*8
         self.ef_dim = 128
         self.z_dim = 100
@@ -49,9 +49,9 @@ class stageI_Gen(nn.Module):
 
 #-----------------STAGE I: DISCRIMINATOR (LOW RESOLUTION IMAGE PROD.)-------------------------#
 
-class stageI_Dis(nn.Module):
+class StageI_Dis(nn.Module):
     def __init__(self):
-        super(stageI_Dis, self).__init__()
+        super(StageI_Dis, self).__init__()
         self.df_dim = 96
         self.ef_dim = 128
         self.define_module()
@@ -71,7 +71,7 @@ class stageI_Dis(nn.Module):
             nn.BatchNorm2d(ndf*8),
             nn.LeakyReLU(0.2,inplace=True)
         )
-        self.get_cond_logits = D_logits(ndf,nef)
+        self.get_cond_logits = D_Logits(ndf,nef)
         self.get_uncond_logits = None
         
     def forward(self,image):
@@ -82,19 +82,19 @@ class stageI_Dis(nn.Module):
 
   
 class StageII_GeN(nn.Module):
-    def __init__(self,stageII_GeN):
-        super(stageII_GeN,self).__init__()
-        self.gf_dim = GAN_GF_DIM
-        self.ef_dim = GAN_CONDITION_DIM 
-        self.z_dim = Z_DIM 
-        self.stageI_GeN = stageI_Gen
-        for param in self.stageI_GeN.parameters():
+    def __init__(self,StageI_Gen):
+        super(StageII_GeN,self).__init__()
+        self.gf_dim = 192
+        self.ef_dim = 128
+        self.z_dim = 100
+        self.StageI_Gen = StageI_Gen
+        for param in self.StageI_Gen.parameters():
             param.requires_grad = False
         self.define_module()
         
     def _make_layer(self,block,channel_num):
         layers = []
-        for _ in range(GAN_R_NUM):
+        for _ in range(2):
             layers.append(block(channel_num))
         return nn.Sequential(*layers)
 
@@ -105,7 +105,7 @@ class StageII_GeN(nn.Module):
             conv3x3(3,ngf),
             nn.ReLU(True),
             nn.Conv2d(ngf,ngf*2,4,2,1,bias=False),
-            nn.Batchnorm2d(ngf*2),
+            nn.BatchNorm2d(ngf*2),
             nn.ReLU(True),
             nn.Conv2d(ngf*2,ngf*4,4,2,1,bias=False),
             nn.BatchNorm2d(ngf*4),
@@ -128,7 +128,7 @@ class StageII_GeN(nn.Module):
         )
         
     def forward(self, text_embedding, noise):
-        _, stage1_img, _, _ = self.stageI_Gen(text_embedding, noise)
+        _, stage1_img, _, _ = self.StageI_Gen(text_embedding, noise)
         stage1_img = stage1_img.detach()
         encoded_img = self.encoder(stage1_img)
 
@@ -152,10 +152,10 @@ class StageII_GeN(nn.Module):
 #-----------------STAGE II: DISCRIMINATOR (HIGH RESOLUTION IMAGE PROD.)-------------------------#
 
 class StageII_Disc(nn.Module):
-    def __init__(self,StageII_Disc):
+    def __init__(self):
         super(StageII_Disc,self).__init__()
-        self.df_dim = GAN_DF_DIM 
-        self.ef_dim = GAN_CONDITION_DIM
+        self.df_dim = 96
+        self.ef_dim = 128
         self.define_module()
         
         
@@ -165,19 +165,19 @@ class StageII_Disc(nn.Module):
             nn.Conv2d(3,ndf,4,2,1,bias=False),
             nn.LeakyReLU(0.2,inplace=True),
             nn.Conv2d(ndf,ndf*2,4,2,1,bias=False),
-            nn.Batchnorm2d(ndf*2),
+            nn.BatchNorm2d(ndf*2),
             nn.LeakyReLU(0.2,inplace=True),
             nn.Conv2d(ndf*2,ndf*4,4,2,1,bias=False),
-            nn.Batchnorm2d(ndf*4),
+            nn.BatchNorm2d(ndf*4),
             nn.LeakyReLU(0.2,inplace=True),
             nn.Conv2d(ndf*4,ndf*8,4,2,1,bias=False),
-            nn.Batchnorm2d(ndf*8),
+            nn.BatchNorm2d(ndf*8),
             nn.LeakyReLU(0.2,inplace=True),
             nn.Conv2d(ndf*8,ndf*16,4,2,1,bias=False),
-            nn.Batchnorm2d(ndf*16),
+            nn.BatchNorm2d(ndf*16),
             nn.LeakyReLU(0.2,inplace=True),
             nn.Conv2d(ndf*16,ndf*32,4,2,1,bias=False),
-            nn.Batchnorm2d(ndf*32),
+            nn.BatchNorm2d(ndf*32),
             nn.LeakyReLU(0.2,inplace=True),
             conv3x3(ndf*32,ndf*16),
             nn.BatchNorm2d(ndf*16),
@@ -271,10 +271,10 @@ class ResBlock(nn.Module):
         super(ResBlock,self).__init__()
         self.block = nn.Sequential(
             conv3x3(channel_num, channel_num),
-            nn.Batchnorm2d(channel_num),
+            nn.BatchNorm2d(channel_num),
             nn.ReLU(True),
             conv3x3(channel_num,channel_num),
-            nn.Batchnorm2d(channel_num)
+            nn.BatchNorm2d(channel_num)
         )
         self.relu = nn.ReLU(inplace=True)
         
@@ -294,10 +294,10 @@ class D_GET_LOGITS(nn.Module):
         if bcondition:
             self.outlogits = nn.Sequential(
                 conv3x3(ndf*8+nef, ndf*8),
-                nn.Batchnorm2d(ndf*8),
+                nn.BatchNorm2d(ndf*8),
                 nn.LeakyReLU(0.2,inplace=True),
                 nn.Conv2d(ndf*8,1,kernel_size=4),
-                nn.Sigmodi()
+                nn.Sigmoid()
             )
         else:
             self.outlogits = nn.Sequential(
@@ -313,3 +313,49 @@ class D_GET_LOGITS(nn.Module):
             h_c_code = h_code
         output = self.outlogits(h_c_code)
         return output.view(-1)
+    
+class TestGANModels(TestCase):
+    def test_stageI_gen(self):
+        text_embedding = torch.randn(4, 1024)  # Dummy text embedding
+        noise = torch.randn(4, 100)  # Dummy noise vector
+
+        stageI_gen = StageI_Gen()
+        _, fake_img, mu, logvar = stageI_gen(text_embedding, noise)
+
+        self.assertEqual(fake_img.shape, (4, 3, 64, 64), "StageI_Gen output shape mismatch")
+        self.assertEqual(mu.shape, (4, 128), "StageI_Gen mu shape mismatch")
+        self.assertEqual(logvar.shape, (4, 128), "StageI_Gen logvar shape mismatch")
+
+    def test_stageI_dis(self):
+        image = torch.randn(4, 3, 64, 64)  # Dummy image
+
+        stageI_dis = StageI_Dis()
+        img_embedding = stageI_dis(image)
+
+        self.assertEqual(img_embedding.shape, (4, 768, 4, 4), "StageI_Dis output shape mismatch")
+
+    def test_stageII_gen(self):
+        text_embedding = torch.randn(4, 1024)  # Dummy text embedding
+        noise = torch.randn(4, 100)  # Dummy noise vector
+
+        stageI_gen = StageI_Gen()
+        stageII_gen = StageII_GeN(stageI_gen)
+        stage1_img, fake_img, mu, logvar = stageII_gen(text_embedding, noise)
+
+        self.assertEqual(stage1_img.shape, (4, 3, 64, 64), "StageII_GeN stage1_img shape mismatch")
+        self.assertEqual(fake_img.shape, (4, 3, 256, 256), "StageII_GeN fake_img shape mismatch")
+        self.assertEqual(mu.shape, (4, 128), "StageII_GeN mu shape mismatch")
+        self.assertEqual(logvar.shape, (4, 128), "StageII_GeN logvar shape mismatch")
+
+    def test_stageII_dis(self):
+        image = torch.randn(4, 3, 256, 256)  # Dummy high-resolution image
+
+        stageII_dis = StageII_Disc()
+        img_embedding = stageII_dis(image)
+
+        self.assertEqual(img_embedding.shape, (4, 768, 4, 4), "StageII_Disc output shape mismatch")
+
+# To run the tests
+if __name__ == '__main__':
+    import unittest
+    unittest.main()
